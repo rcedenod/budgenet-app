@@ -93,7 +93,7 @@ export class Categories {
         const newCategoryInputWrapper = document.createElement('div');
         this._newCategoryInput = new Input(newCategoryInputWrapper, {
             placeholder: 'Nombre de la categoría',
-            styles: { width: '96%' },
+            styles: { width: '100%' },
         });
         createArea.appendChild(this._newCategoryInput.render());
 
