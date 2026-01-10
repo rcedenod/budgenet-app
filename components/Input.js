@@ -7,7 +7,8 @@ export class Input {
         border: '1px solid #ccc',
         borderRadius: '5px',
         fontSize: '16px',
-        width: '15%',
+        width: '100%', // Cambiado a 100% para ocupar todo su contenedor
+        boxSizing: 'border-box', // Incluye el padding dentro del ancho
     };
 
     // input con focus
@@ -36,18 +37,18 @@ export class Input {
             throw new Error('Input: el container debe ser un elemento HTML válido.');
         }
 
-        this.container = container; // contenedor
-        this.type = type; // tipo de input
-        this.placeholder = placeholder; // placeholder
-        this.value = value; // valor inicial
-        this.isDisabled = isDisabled; // estado deshabilitado/habilitado
+        this.container = container;
+        this.type = type;
+        this.placeholder = placeholder;
+        this.value = value;
+        this.isDisabled = isDisabled;
 
-        this.styles = { ...this._defaultStyles, ...styles }; // estilos generales
-        this.focusStyles = { ...this._defaultFocusStyles, ...focusStyles }; // estilos al hacer focus
-        this.disabledStyles = { ...this._defaultDisabledStyles, ...disabledStyles }; // estilos al deshabilitar
+        this.styles = { ...this._defaultStyles, ...styles };
+        this.focusStyles = { ...this._defaultFocusStyles, ...focusStyles };
+        this.disabledStyles = { ...this._defaultDisabledStyles, ...disabledStyles };
 
-        this.onInput = onInput; // que hacer al recibir informacion
-        this.onChange = onChange; // al finalizar de ingresar la informacion
+        this.onInput = onInput;
+        this.onChange = onChange;
 
         this.inputElement = document.createElement('input');
         this.render();
@@ -69,13 +70,11 @@ export class Input {
 
         this._applyStyles(this.inputElement, this.styles);
 
-        // guardar estilos iniciales para poder volver a ellos al quitar el foco o habilitar
         this.initialStyles = {};
         for (const key in this.styles) {
             this.initialStyles[key] = this.inputElement.style[key];
         }
 
-        // eventos de foco (focus y perder focus)
         this.handleFocus = () => {
             if (!this.inputElement.disabled) {
                 this._applyStyles(this.inputElement, this.focusStyles);
@@ -87,17 +86,16 @@ export class Input {
             }
         };
 
-        this.inputElement.addEventListener('focus', this.handleFocus); // al hacer click al input (focus)
-        this.inputElement.addEventListener('blur', this.handleBlur); // al salir del input (perfer el focus)
-        this.inputElement.addEventListener('input', this.onInput); // cambio de tecla
-        this.inputElement.addEventListener('change', this.onChange); // al finalizar de ingresar informacion
+        this.inputElement.addEventListener('focus', this.handleFocus);
+        this.inputElement.addEventListener('blur', this.handleBlur);
+        this.inputElement.addEventListener('input', this.onInput);
+        this.inputElement.addEventListener('change', this.onChange);
 
         this.container.appendChild(this.inputElement);
 
         return this.inputElement;
     }
 
-    // metodos para interactuar con el input desde fuera
     getValue() {
         return this.inputElement.value;
     }
@@ -108,10 +106,8 @@ export class Input {
         if (this.inputElement) {
             this.inputElement.disabled = isDisabled;
             if (isDisabled) {
-                // aplicar estilos de deshabilitado
                 this._applyStyles(this.inputElement, this.disabledStyles);
             } else {
-                // restaurar estilos por defecto
                 this._applyStyles(this.inputElement, this.initialStyles);
             }
         }

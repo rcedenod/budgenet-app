@@ -131,7 +131,7 @@ export class Dashboard {
             type: 'number',
             placeholder: 'Año',
             value: this._currentYear.toString(),
-            styles: { width: '96.5%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' },
+            styles: { width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' },
             onChange: (event) => {
                 const value = parseInt(event.target.value, 10);
                 if (!isNaN(value)) {

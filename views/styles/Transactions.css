@@ -219,4 +219,9 @@
         /* Altura mínima para que la lista no desaparezca */
         min-height: 400px; 
     }
+
+    .header { order: 1; }
+    .register { order: 2; } 
+    .content { order: 3; }
+    .filters { order: 4; }
 }
