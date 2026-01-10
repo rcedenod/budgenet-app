@@ -92,10 +92,6 @@ export class Dashboard {
         asideArea.classList.add('aside');
         dashboardView.appendChild(asideArea);
 
-        const userArea = document.createElement('div');
-        userArea.classList.add('user');
-        asideArea.appendChild(userArea);
-
         const monthNames = [
             'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'

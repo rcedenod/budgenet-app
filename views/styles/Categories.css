@@ -186,3 +186,28 @@
     justify-content: flex-end;
     width: 100%;
 }
+
+@media (max-width: 768px) {
+    .categories-grid-container {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        overflow-y: visible;
+        gap: 15px;
+    }
+
+    /* --- ORDEN VISUAL EXPLÍCITO --- */
+    /* Esto garantiza que el Header sea el #1 */
+    .header { order: 1; }
+    .create-area { order: 2; }
+    .view-area { order: 3; }
+    .extra { order: 4; }
+
+    .view-area {
+        min-height: 300px;
+    }
+
+    .charts-container-wrapper {
+        flex-direction: column;
+    }
+}

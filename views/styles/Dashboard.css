@@ -182,24 +182,10 @@
     gap: 15px;
     grid-auto-flow: row;
     grid-template-areas:
-        "user"
         "budget"
         "filters";
     justify-content: flex-start;
     align-items: stretch;
-}
-
-.user {
-    grid-area: user;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-radius: 5px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: #34495E;
 }
 
 .budget {
@@ -379,4 +365,38 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+@media (max-width: 950px) {
+    .dashboardView {
+        /* Desactivamos Grid y usamos Flex vertical para apilar */
+        display: flex;
+        flex-direction: column;
+        height: auto; /* Permitir que crezca con el contenido */
+        overflow-y: visible; /* El scroll lo maneja el contenedor principal */
+        gap: 15px;
+    }
+    
+    /* REORDENAMIENTO VISUAL 
+       1. Header
+       2. Aside (Resumen Presupuesto y Filtros) -> Importante verlo primero en móvil
+       3. Transacciones Recientes
+       4, 5, 6. Gráficos al final
+    */
+    .header { order: 1; }
+    .aside { order: 2; } 
+    .recent-transactions { order: 3; }
+    .expenses-incomes { order: 4; }
+    .balance-evolution { order: 5; }
+    .expenses-comparative { order: 6; }
+
+    /* AJUSTE DE ALTURA DE GRÁFICOS
+       Reducimos de 300px a 220px para que no ocupen tanta pantalla
+    */
+    .expenses-incomes, 
+    .balance-evolution, 
+    .expenses-comparative {
+        height: 220px;
+        min-height: 220px;
+    }
 }

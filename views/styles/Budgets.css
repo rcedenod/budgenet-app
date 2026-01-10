@@ -221,3 +221,43 @@
 .search-area .select-wrapper {
     width: 100%;
 }
+
+@media (max-width: 900px) {
+    .budgets-grid-container {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        overflow-y: visible;
+        gap: 15px;
+    }
+
+    /* --- ORDEN VISUAL EXPLÍCITO --- */
+    /* Garantizamos que el Header quede arriba */
+    .header { order: 1; }
+    .budget-form-area { order: 2; }
+    .budget-list-area { order: 3; }
+    .budget-charts-area { order: 4; }
+
+    /* Apilar secciones internas (Formulario y Filtros) */
+    .budget-form-area {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-area {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+        padding-right: 0;
+        padding-bottom: 15px;
+    }
+
+    /* Gráficas una debajo de otra */
+    .charts-display {
+        grid-template-columns: 1fr;
+    }
+
+    /* Altura mínima para ver la lista */
+    .budget-list-area {
+        min-height: 300px;
+    }
+}

@@ -58,10 +58,12 @@ export class Budgets {
     }
 
     _loadCSS(path) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = path;
-        document.head.appendChild(link);
+        if (!document.querySelector(`link[href="${path}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = path;
+            document.head.appendChild(link);
+        }
     }
 
     async loadCategories() {
@@ -97,7 +99,15 @@ export class Budgets {
         const budgetFormArea = document.createElement('div');
         budgetFormArea.classList.add('budget-form-area');
 
-        // Form Area
+        // Definimos estilos comunes para asegurar alineación perfecta
+        const commonInputStyles = {
+            width: '100%',
+            boxSizing: 'border-box', // Clave para que padding no afecte el ancho total
+            height: '42px',          // Altura unificada
+            margin: '0'              // El espaciado lo maneja el CSS (gap)
+        };
+
+        // --- Form Area (Crear Presupuesto) ---
         const formArea = document.createElement('div');
         formArea.classList.add('form-area');
         formArea.innerHTML = '<h3>Establecer presupuesto</h3>';
@@ -111,7 +121,7 @@ export class Budgets {
         this._budgetMonthSelect = new Select(budgetMonthWrapper, {
             items: monthOptions,
             selectedValue: this._currentMonth.toString(),
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
         });
         formArea.appendChild(this._budgetMonthSelect.render());
 
@@ -120,25 +130,24 @@ export class Budgets {
             placeholder: 'Año (ej: 2025)',
             type: 'number',
             value: this._currentYear.toString(),
-            styles: { width: '89%', marginBottom: '10px' },
+            styles: commonInputStyles,
         });
         formArea.appendChild(this._budgetYearInput.render());
 
         const budgetCategoryWrapper = document.createElement('div');
-        formArea.appendChild(budgetCategoryWrapper);
         this._budgetCategorySelect = new Select(budgetCategoryWrapper, {
             items: [],
-            styles: { width: '95%', marginBottom: '10px' },
+            styles: commonInputStyles,
             placeholder: 'Seleccione una categoría',
         });
-        this._budgetCategorySelect.render();
+        formArea.appendChild(this._budgetCategorySelect.render());
 
         const budgetAmountWrapper = document.createElement('div');
         this._budgetAmountInput = new Input(budgetAmountWrapper, {
-            placeholder: 'Monto estimado (ej: 500.00)',
+            placeholder: 'Monto estimado (Bs.)',
             type: 'number',
             step: '0.01',
-            styles: { width: '89%', marginBottom: '10px' },
+            styles: commonInputStyles,
         });
         formArea.appendChild(this._budgetAmountInput.render());
 
@@ -151,38 +160,35 @@ export class Budgets {
         formArea.appendChild(this._saveBudgetButton.render());
         budgetFormArea.appendChild(formArea);
 
-        // Search Area
+        // --- Search Area (Filtros) ---
         const searchArea = document.createElement('div');
         searchArea.classList.add('search-area');
         searchArea.innerHTML = '<h3>Filtrar presupuestos</h3>';
 
         const filterCategoryWrapper = document.createElement('div');
-        searchArea.appendChild(filterCategoryWrapper);
         this._filterCategorySelect = new Select(filterCategoryWrapper, {
             items: [{ value: '', text: 'Todas las categorías' }],
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
             placeholder: 'Categoría',
         });
-        this._filterCategorySelect.render();
+        searchArea.appendChild(this._filterCategorySelect.render());
 
         const filterMonthWrapper = document.createElement('div');
-        searchArea.appendChild(filterMonthWrapper);
         this._filterMonthSelect = new Select(filterMonthWrapper, {
             items: [{ value: '', text: 'Todos los meses' }, ...monthOptions],
             selectedValue: '',
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
             placeholder: 'Mes',
         });
-        this._filterMonthSelect.render();
+        searchArea.appendChild(this._filterMonthSelect.render());
 
         const filterYearWrapper = document.createElement('div');
-        searchArea.appendChild(filterYearWrapper);
         this._filterYearInput = new Input(filterYearWrapper, {
             placeholder: 'Año (ej: 2025)',
             type: 'number',
-            styles: { width: '89%', marginBottom: '10px' },
+            styles: commonInputStyles,
         });
-        this._filterYearInput.render();
+        searchArea.appendChild(this._filterYearInput.render());
 
         const applyFilterButtonWrapper = document.createElement('div');
         this._applyFilterButton = new Button(applyFilterButtonWrapper, {
@@ -220,11 +226,14 @@ export class Budgets {
         chartControlsContainer.classList.add('chart-controls');
         
         const chartMonthWrapper = document.createElement('div');
+        chartMonthWrapper.style.flex = "1"; // Para que ocupen espacio igual en el control de charts
         const chartYearWrapper = document.createElement('div');
+        chartYearWrapper.style.flex = "1";
+
         this._chartMonthSelect = new Select(chartMonthWrapper, {
             items: monthOptions,
             selectedValue: this._currentMonth.toString(),
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
             onChange: (e) => this._handleChartMonthYearChange(e.target.value, this._chartYearInput.getValue())
         });
         chartControlsContainer.appendChild(this._chartMonthSelect.render());
@@ -233,7 +242,7 @@ export class Budgets {
             placeholder: 'Año',
             type: 'number',
             value: this._currentYear.toString(),
-            styles: { width: '95%', marginBottom: '10px' },
+            styles: commonInputStyles,
             onInput: (e) => this._handleChartMonthYearChange(this._chartMonthSelect.getValue(), e.target.value)
         });
         chartControlsContainer.appendChild(this._chartYearInput.render());
@@ -257,26 +266,52 @@ export class Budgets {
             categoryOptions.push({ value: cat.id, text: cat.name });
         });
 
+        // Mismos estilos consistentes
+        const commonInputStyles = {
+            width: '100%',
+            boxSizing: 'border-box',
+            height: '42px',
+            margin: '0'
+        };
+
         this._budgetCategorySelect.remove();
-        const budgetCategoryWrapper = this._budgetCategorySelect.container;
+        const budgetCategoryWrapper = this._budgetCategorySelect.container; // Recuperamos el wrapper original
         this._budgetCategorySelect = new Select(budgetCategoryWrapper, {
             items: categoryOptions.filter(opt => opt.value !== ''),
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
             placeholder: 'Seleccione una categoría',
         });
-        budgetCategoryWrapper.appendChild(this._budgetCategorySelect.render());
+        // Como remove() quita el elemento del DOM, necesitamos volver a añadir el renderizado
+        // Nota: En tu implementación original de Select, el constructor ya hace appendChild al container.
+        // Pero en render() anterior usamos appendChild del resultado de render().
+        // Para asegurar que no se duplique o pierda, limpiamos el wrapper antes.
+        budgetCategoryWrapper.innerHTML = '';
+        this._budgetCategorySelect = new Select(budgetCategoryWrapper, {
+             items: categoryOptions.filter(opt => opt.value !== ''),
+             styles: commonInputStyles,
+             placeholder: 'Seleccione una categoría',
+        });
+        // Si el Select se auto-agrega en constructor, no necesitamos hacer nada más que instanciarlo con el wrapper correcto.
+        // Pero según tu código anterior, hacías appendChild(render()). Asumiré que render() devuelve el elemento y es seguro añadirlo.
+        if (!budgetCategoryWrapper.hasChildNodes()) {
+             budgetCategoryWrapper.appendChild(this._budgetCategorySelect.render());
+        }
+
         if (categoryOptions.filter(opt => opt.value !== '').length > 0) {
             this._budgetCategorySelect.setValue(categoryOptions.filter(opt => opt.value !== '')[0].value);
         }
 
         this._filterCategorySelect.remove();
         const filterCategoryWrapper = this._filterCategorySelect.container;
+        filterCategoryWrapper.innerHTML = '';
         this._filterCategorySelect = new Select(filterCategoryWrapper, {
             items: categoryOptions,
-            styles: { width: '100%', marginBottom: '10px' },
+            styles: commonInputStyles,
             placeholder: 'Categoría',
         });
-        filterCategoryWrapper.appendChild(this._filterCategorySelect.render());
+        if (!filterCategoryWrapper.hasChildNodes()) {
+            filterCategoryWrapper.appendChild(this._filterCategorySelect.render());
+        }
         this._filterCategorySelect.setValue('');
     }
 
