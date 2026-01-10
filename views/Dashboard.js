@@ -108,7 +108,7 @@ export class Dashboard {
         asideArea.appendChild(budgetArea);
 
         const filtersArea = document.createElement('div');
-        filtersArea.classList.add('filters');
+        filtersArea.classList.add('d-filters');
         filtersArea.innerHTML = '<h3>Filtros de tiempo</h3>';
         asideArea.appendChild(filtersArea);
 

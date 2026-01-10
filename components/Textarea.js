@@ -9,7 +9,7 @@ export class Textarea {
         width: '100%',
         minHeight: '80px',
         resize: 'none',
-        boxSizing: 'border-box', // para incluir padding y borde en el ancho total
+        boxSizing: 'border-box',
     };
 
     // textarea con focus
@@ -28,7 +28,7 @@ export class Textarea {
     constructor(container, {
         placeholder = 'Ingresar texto',
         value = '',
-        rows = 3, // Propiedad específica para textarea
+        rows = 2, // Propiedad específica para textarea
         styles = {},
         focusStyles = {},
         disabledStyles = {},

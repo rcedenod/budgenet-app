@@ -306,7 +306,7 @@
     font-weight: bold;
 }
 
-.filters {
+.d-filters {
     grid-area: filters;
     background-color: #f8f9fa;
     padding: 15px;
@@ -318,7 +318,7 @@
     align-items: flex-start;
 }
 
-.filters h3 {
+.d-filters h3 {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 1.1em;
