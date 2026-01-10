@@ -3,556 +3,235 @@ export class Charts {
     _chartInstances = {};
 
     constructor(db) {
-        if (!(db)) {
-            throw new Error('Charts: Se requiere una instancia válida de IndexedDB. 📊');
-        }
+        if (!db) throw new Error('Charts: IndexedDB requerida.');
         this._db = db;
     }
 
-    _getMonthName(monthIndex) {
-        const date = new Date(2000, monthIndex);
-        return date.toLocaleString('es-ES', { month: 'long' });
+    _getMonthName(index) {
+        return new Date(2000, index).toLocaleString('es-ES', { month: 'long' });
     }
 
-    async genExpensesByMonthCategory(targetElement, month, year) {
-        if (this._chartInstances[`expenses-${targetElement.id}`]) {
-            this._chartInstances[`expenses-${targetElement.id}`].destroy();
-            delete this._chartInstances[`expenses-${targetElement.id}`];
-        }
+    // Helper para corregir montos (de centavos a decimales)
+    _fixAmount(amount) {
+        return amount / 100;
+    }
 
-        const canvas = document.createElement('canvas');
-        canvas.id = `expensesPieChart-${targetElement.id}`;
-        
-        let chartContainer = targetElement.querySelector('.expenses-chart-container');
-        if (!chartContainer) {
-            chartContainer = document.createElement('div');
-            chartContainer.classList.add('expenses-chart-container');
-            chartContainer.style.width = '100%';
-            chartContainer.style.height = '100%';
-            chartContainer.style.display = 'flex';
-            chartContainer.style.justifyContent = 'center';
-            chartContainer.style.alignItems = 'center';
-
-            targetElement.appendChild(chartContainer);
-        }
-        chartContainer.innerHTML = '';
-        chartContainer.appendChild(canvas);
-
-        const ctx = canvas.getContext('2d');
+    async genExpensesByMonthCategory(target, month, year) {
+        this._destroyChart(`expenses-${target.id}`);
+        const ctx = this._setupCanvas(target, `expensesPieChart-${target.id}`);
+        if (!ctx) return;
 
         try {
             const allTransactions = await this._db.getTransactions();
             const allCategories = await this._db.getCategories();
             const categoryMap = new Map(allCategories.map(cat => [cat.id, cat.name]));
 
-            const filteredExpenses = allTransactions.filter(t => {
-                const transactionDate = new Date(t.date);
-                return transactionDate.getMonth() + 1 === month &&
-                       transactionDate.getFullYear() === year &&
-                       t.type === 'expense';
+            const filtered = allTransactions.filter(t => {
+                const d = new Date(t.date);
+                return d.getMonth() + 1 === month && d.getFullYear() === year && t.type === 'expense';
             });
 
-            const expensesByCategory = {};
-            filteredExpenses.forEach(expense => {
-                const categoryName = categoryMap.get(expense.categoryId);
-                if (expensesByCategory[categoryName]) {
-                    expensesByCategory[categoryName] += expense.amount;
-                } else {
-                    expensesByCategory[categoryName] = expense.amount;
-                }
+            const dataMap = {};
+            filtered.forEach(t => {
+                const name = categoryMap.get(t.categoryId) || 'Otros';
+                dataMap[name] = (dataMap[name] || 0) + t.amount;
             });
 
-            const labels = Object.keys(expensesByCategory);
-            const data = Object.values(expensesByCategory);
-
-            const backgroundColors = labels.map(() => {
-                const r = Math.floor(Math.random() * 200) + 50;
-                const g = Math.floor(Math.random() * 200) + 50;
-                const b = Math.floor(Math.random() * 200) + 50;
-                return `rgba(${r}, ${g}, ${b}, 0.8)`;
-            });
+            // CORRECCIÓN: Dividir valores por 100
+            const labels = Object.keys(dataMap);
+            const data = Object.values(dataMap).map(val => this._fixAmount(val));
 
             if (labels.length === 0) {
-                chartContainer.innerHTML = '<p class="no-chart-data-message">No hay egresos registrados para este mes.</p>';
+                target.innerHTML = '<p class="no-chart-data-message">No hay datos.</p>';
                 return;
             }
 
-            const monthName = this._getMonthName(month - 1);
-            const chartTitle = `Egresos - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-
-            this._chartInstances[`expenses-${targetElement.id}`] = new window.Chart(ctx, {
+            this._chartInstances[`expenses-${target.id}`] = new window.Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: backgroundColors
-                    }]
+                    labels,
+                    datasets: [{ data, backgroundColor: this._genColors(labels.length) }]
                 },
-                options: {
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: chartTitle,
-                            font: {
-                                size: 14
-                            }
-                        }
-                    }
-                }
+                options: { plugins: { title: { display: true, text: `Egresos - ${this._getMonthName(month - 1)} ${year}` } } }
             });
-
-        } catch (error) {
-            console.error('Error al cargar los datos del gráfico de egresos:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
-    async genIncomesByMonthCategory(targetElement, month, year) {
-        if (this._chartInstances[`incomes-${targetElement.id}`]) {
-            this._chartInstances[`incomes-${targetElement.id}`].destroy();
-            delete this._chartInstances[`incomes-${targetElement.id}`];
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.id = `incomesPieChart-${targetElement.id}`;
-
-        let chartContainer = targetElement.querySelector('.incomes-chart-container');
-        if (!chartContainer) {
-            chartContainer = document.createElement('div');
-            chartContainer.classList.add('incomes-chart-container');
-            chartContainer.style.width = '100%';
-            chartContainer.style.height = '100%';
-            chartContainer.style.display = 'flex';
-            chartContainer.style.justifyContent = 'center';
-            chartContainer.style.alignItems = 'center';
-            targetElement.appendChild(chartContainer);
-        }
-        chartContainer.innerHTML = '';
-        chartContainer.appendChild(canvas);
-
-        const ctx = canvas.getContext('2d');
+    async genIncomesByMonthCategory(target, month, year) {
+        this._destroyChart(`incomes-${target.id}`);
+        const ctx = this._setupCanvas(target, `incomesPieChart-${target.id}`);
+        if (!ctx) return;
 
         try {
-            const allTransactions = await this._db.getTransactions();
-            const allCategories = await this._db.getCategories();
-            const categoryMap = new Map(allCategories.map(cat => [cat.id, cat.name]));
+            const all = await this._db.getTransactions();
+            const cats = await this._db.getCategories();
+            const map = new Map(cats.map(c => [c.id, c.name]));
 
-            const filteredIncomes = allTransactions.filter(t => {
-                const transactionDate = new Date(t.date);
-                return transactionDate.getMonth() + 1 === month &&
-                       transactionDate.getFullYear() === year &&
-                       t.type === 'income';
+            const filtered = all.filter(t => {
+                const d = new Date(t.date);
+                return d.getMonth() + 1 === month && d.getFullYear() === year && t.type === 'income';
             });
 
-            const incomesByCategory = {};
-            filteredIncomes.forEach(income => {
-                const categoryName = categoryMap.get(income.categoryId);
-                if (incomesByCategory[categoryName]) {
-                    incomesByCategory[categoryName] += income.amount;
-                } else {
-                    incomesByCategory[categoryName] = income.amount;
-                }
+            const dataMap = {};
+            filtered.forEach(t => {
+                const name = map.get(t.categoryId) || 'Otros';
+                dataMap[name] = (dataMap[name] || 0) + t.amount;
             });
 
-            const labels = Object.keys(incomesByCategory);
-            const data = Object.values(incomesByCategory);
-
-            const backgroundColors = labels.map(() => {
-                const r = Math.floor(Math.random() * 200) + 50;
-                const g = Math.floor(Math.random() * 200) + 50;
-                const b = Math.floor(Math.random() * 200) + 50;
-                return `rgba(${r}, ${g}, ${b}, 0.8)`;
-            });
+            const labels = Object.keys(dataMap);
+            const data = Object.values(dataMap).map(val => this._fixAmount(val));
 
             if (labels.length === 0) {
-                chartContainer.innerHTML = '<p class="no-chart-data-message">No hay ingresos registrados para este mes.</p>';
+                target.innerHTML = '<p class="no-chart-data-message">No hay datos.</p>';
                 return;
             }
 
-            const monthName = this._getMonthName(month - 1);
-            const chartTitle = `Ingresos - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-
-            this._chartInstances[`incomes-${targetElement.id}`] = new window.Chart(ctx, {
+            this._chartInstances[`incomes-${target.id}`] = new window.Chart(ctx, {
                 type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: backgroundColors
-                    }]
-                },
-                options: {
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: chartTitle,
-                            font: {
-                                size: 14
-                            }
-                        }
-                    }
-                }
+                data: { labels, datasets: [{ data, backgroundColor: this._genColors(labels.length) }] },
+                options: { plugins: { title: { display: true, text: `Ingresos - ${this._getMonthName(month - 1)} ${year}` } } }
             });
-
-        } catch (error) {
-            console.error('Error al cargar los datos del gráfico de ingresos:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
-    async genIncomeExpenseBarChart(targetElement, month, year) {
-        const chartId = `incomeExpenseBarChart-${targetElement.id}`;
-        if (this._chartInstances[chartId]) {
-            this._chartInstances[chartId].destroy();
-            delete this._chartInstances[chartId];
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.id = chartId;
-        
-        let chartContainer = targetElement.querySelector('.income-expense-chart-container');
-        if (!chartContainer) {
-            chartContainer = document.createElement('div');
-            chartContainer.classList.add('income-expense-chart-container');
-            chartContainer.style.width = '100%';
-            chartContainer.style.height = '100%';
-            chartContainer.style.display = 'flex';
-            chartContainer.style.justifyContent = 'center';
-            chartContainer.style.alignItems = 'center';
-
-            targetElement.appendChild(chartContainer);
-        }
-        chartContainer.innerHTML = '';
-        chartContainer.appendChild(canvas);
-
-        const ctx = canvas.getContext('2d');
+    async genIncomeExpenseBarChart(target, month, year) {
+        const id = `incomeExpenseBarChart-${target.id}`;
+        this._destroyChart(id);
+        const ctx = this._setupCanvas(target, id, 'income-expense-chart-container');
+        if (!ctx) return;
 
         try {
-            const allTransactions = await this._db.getTransactions();
-            const transactionsForMonth = allTransactions.filter(t => {
-                const transactionDate = new Date(t.date);
-                return (transactionDate.getMonth() + 1) === month &&
-                       transactionDate.getFullYear() === year;
+            const all = await this._db.getTransactions();
+            const current = all.filter(t => {
+                const d = new Date(t.date);
+                return d.getMonth() + 1 === month && d.getFullYear() === year;
             });
 
-            let totalIncomes = 0;
-            let totalExpenses = 0;
-
-            console.log(`Total de transacciones encontradas para el mes ${month} del ${year}:`, transactionsForMonth.length);
-
-            transactionsForMonth.forEach(transaction => {
-                if (transaction.type === 'income') {
-                    totalIncomes += transaction.amount;
-                } else if (transaction.type === 'expense') {
-                    totalExpenses += transaction.amount;
-                }
+            let income = 0, expense = 0;
+            current.forEach(t => {
+                if (t.type === 'income') income += t.amount;
+                else expense += t.amount;
             });
 
-            console.log(`Total de ingresos para ${this._getMonthName(month - 1)} ${year}:`, totalIncomes.toFixed(2));
-            console.log(`Total de egresos para ${this._getMonthName(month - 1)} ${year}:`, totalExpenses.toFixed(2));
-
-
-            const monthName = this._getMonthName(month - 1);
-            const chartTitle = `Ingresos vs. Egresos - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-
-            if (totalIncomes === 0 && totalExpenses === 0) {
-                chartContainer.innerHTML = '<p class="no-chart-data-message">No hay ingresos ni egresos registrados para este mes/año.</p>';
+            if (income === 0 && expense === 0) {
+                target.innerHTML = '<p class="no-chart-data-message">Sin datos.</p>';
                 return;
             }
 
-            this._chartInstances[chartId] = new window.Chart(ctx, {
+            this._chartInstances[id] = new window.Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Ingresos', 'Egresos'],
                     datasets: [{
-                        label: `En ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`,
-                        data: [totalIncomes, totalExpenses],
-                        backgroundColor: [
-                            'rgba(75, 192, 192, 0.8)',
-                            'rgba(255, 99, 132, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(255, 99, 132, 1)'
-                        ],
-                        borderWidth: 1
+                        label: 'Monto',
+                        data: [this._fixAmount(income), this._fixAmount(expense)],
+                        backgroundColor: ['rgba(75, 192, 192, 0.6)', 'rgba(255, 99, 132, 0.6)']
                     }]
                 },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: chartTitle,
-                            font: {
-                                size: 16
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Monto (Bs.)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
+                options: { maintainAspectRatio: false }
             });
-
-        } catch (error) {
-            console.error('Error al cargar los datos del gráfico de ingresos vs. egresos:', error);
-        }
+        } catch (e) { console.error(e); }
     }
 
-
-    async genBalanceEvolutionLineChart(targetElement, currentYear) {
-        const chartId = `balanceEvolutionLineChart-${targetElement.id}`;
-        if (this._chartInstances[chartId]) {
-            this._chartInstances[chartId].destroy();
-            delete this._chartInstances[chartId];
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.id = chartId;
-        
-        let chartContainer = targetElement.querySelector('.balance-evolution-chart-container');
-        if (!chartContainer) {
-            chartContainer = document.createElement('div');
-            chartContainer.classList.add('balance-evolution-chart-container');
-            chartContainer.style.width = '100%';
-            chartContainer.style.height = '100%';
-            chartContainer.style.display = 'flex';
-            chartContainer.style.justifyContent = 'center';
-            chartContainer.style.alignItems = 'center';
-
-            targetElement.appendChild(chartContainer);
-        }
-        chartContainer.innerHTML = '';
-        chartContainer.appendChild(canvas);
-
-        const ctx = canvas.getContext('2d');
+    async genBalanceEvolutionLineChart(target, year) {
+        const id = `balanceLine-${target.id}`;
+        this._destroyChart(id);
+        const ctx = this._setupCanvas(target, id, 'balance-evolution-chart-container');
+        if (!ctx) return;
 
         try {
-            const allTransactions = await this._db.getTransactions();
-            const monthlyBalances = new Array(12).fill(0); 
-
-            allTransactions.forEach(transaction => {
-                const transactionDate = new Date(transaction.date);
-                if (transactionDate.getFullYear() === currentYear) {
-                    const monthIndex = transactionDate.getMonth();
-                    if (transaction.type === 'income') {
-                        monthlyBalances[monthIndex] += transaction.amount;
-                    } else if (transaction.type === 'expense') {
-                        monthlyBalances[monthIndex] -= transaction.amount;
-                    }
+            const all = await this._db.getTransactions();
+            const balances = new Array(12).fill(0);
+            all.forEach(t => {
+                const d = new Date(t.date);
+                if (d.getFullYear() === year) {
+                    if (t.type === 'income') balances[d.getMonth()] += t.amount;
+                    else balances[d.getMonth()] -= t.amount;
                 }
             });
 
-            const monthLabels = [
-                'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-            ];
-            
-            const currentMonthIndex = new Date().getMonth();
-            const visibleMonthLabels = monthLabels.slice(0, currentMonthIndex + 1);
-            const visibleMonthlyBalances = monthlyBalances.slice(0, currentMonthIndex + 1);
+            const currentMonth = new Date().getMonth();
+            const data = balances.slice(0, currentMonth + 1).map(val => this._fixAmount(val));
+            const labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].slice(0, currentMonth + 1);
 
-            if (visibleMonthlyBalances.every(balance => balance === 0)) {
-                chartContainer.innerHTML = '<p class="no-chart-data-message">No hay datos de balance para mostrar este año.</p>';
-                return;
-            }
-
-            this._chartInstances[chartId] = new window.Chart(ctx, {
+            this._chartInstances[id] = new window.Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: visibleMonthLabels,
+                    labels,
                     datasets: [{
-                        label: 'Balance mensual',
-                        data: visibleMonthlyBalances,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        tension: 0.5,
-                        fill: true,
-                        pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-                        pointBorderColor: '#fff',
+                        label: 'Balance',
+                        data,
+                        borderColor: 'blue',
+                        fill: false
                     }]
                 },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            title: {
-                                display: true,
-                                text: 'Balance (Bs.)'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Mes'
-                            }
-                        }
-                    }
+                options: { maintainAspectRatio: false }
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async genBudgetComparisonChart(target, month, year) {
+        const id = `budgetComp-${target.id}`;
+        this._destroyChart(id);
+        const ctx = this._setupCanvas(target, id);
+        if (!ctx) return;
+
+        try {
+            const budgets = await this._db.getBudgetsByMonthYear(month, year);
+            const allTrans = await this._db.getTransactions();
+            const cats = await this._db.getCategories();
+            const catMap = new Map(cats.map(c => [c.id, c.name]));
+
+            const labels = [], est = [], act = [];
+
+            budgets.forEach(b => {
+                const name = catMap.get(b.categoryId);
+                if (name) {
+                    labels.push(name);
+                    est.push(this._fixAmount(b.amount));
+                    
+                    const actual = allTrans
+                        .filter(t => t.type === 'expense' && t.categoryId === b.categoryId && new Date(t.date).getMonth()+1 === month && new Date(t.date).getFullYear() === year)
+                        .reduce((s, t) => s + t.amount, 0);
+                    act.push(this._fixAmount(actual));
                 }
             });
 
-        } catch (error) {
-            console.error('Error al cargar los datos del gráfico de evolución del balance:', error);
-        }
-    }
+            if (labels.length === 0) { target.innerHTML = '<p class="no-chart-data-message">No hay presupuestos.</p>'; return; }
 
-async genBudgetComparisonChart(targetElement, month, year) {
-    if (this._chartInstances[`budget-comparison-${targetElement.id}`]) {
-        this._chartInstances[`budget-comparison-${targetElement.id}`].destroy();
-        delete this._chartInstances[`budget-comparison-${targetElement.id}`];
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.id = `budgetComparisonChart-${targetElement.id}`;
-    targetElement.innerHTML = '';
-    targetElement.appendChild(canvas);
-    const ctx = canvas.getContext('2d');
-
-    try {
-        const budgets = await this._db.getBudgetsByMonthYear(month, year);
-        const allTransactions = await this._db.getTransactions();
-        const allCategories = await this._db.getCategories();
-        const categoryMap = new Map(allCategories.map(cat => [cat.id, cat.name]));
-
-        const labels = [];
-        const estimatedData = [];
-        const actualData = [];
-        const backgroundColorsEstimated = [];
-        const backgroundColorsActual = [];
-
-        budgets.forEach(budget => {
-            const categoryName = categoryMap.get(budget.categoryId);
-            if (categoryName) {
-                labels.push(categoryName);
-                estimatedData.push(budget.amount);
-
-                const actualExpenses = allTransactions
-                    .filter(t => {
-                        const transactionDate = new Date(t.date);
-                        return t.type === 'expense' &&
-                               t.categoryId === budget.categoryId &&
-                               transactionDate.getMonth() + 1 === month &&
-                               transactionDate.getFullYear() === year;
-                    })
-                    .reduce((sum, t) => sum + t.amount, 0);
-                actualData.push(actualExpenses);
-
-                const r = Math.floor(Math.random() * 150) + 100;
-                const g = Math.floor(Math.random() * 150) + 100;
-                const b = Math.floor(Math.random() * 150) + 100;
-
-                backgroundColorsEstimated.push(`rgba(${r}, ${g}, ${b}, 0.6)`);
-                backgroundColorsActual.push(`rgba(${r - 50}, ${g - 50}, ${b - 50}, 0.8)`);
-            }
-        });
-
-        if (labels.length === 0) {
-            targetElement.innerHTML = '<p class="no-chart-data-message">No hay datos de presupuesto para este mes/año.</p>';
-            return;
-        }
-
-        const monthName = this._getMonthName(month - 1);
-        const chartTitle = `Presupuesto vs. Gasto Real - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-
-        this._chartInstances[`budget-comparison-${targetElement.id}`] = new window.Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Estimado',
-                        data: estimatedData,
-                        backgroundColor: backgroundColorsEstimated,
-                        borderColor: backgroundColorsEstimated.map(color => color.replace('0.6', '1')),
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Real',
-                        data: actualData,
-                        backgroundColor: backgroundColorsActual,
-                        borderColor: backgroundColorsActual.map(color => color.replace('0.8', '1')),
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            font: {
-                                size: 12
-                            }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: chartTitle,
-                        font: {
-                            size: 14
-                        }
-                    }
+            this._chartInstances[id] = new window.Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Estimado', data: est, backgroundColor: 'rgba(54, 162, 235, 0.6)' },
+                        { label: 'Real', data: act, backgroundColor: 'rgba(255, 99, 132, 0.6)' }
+                    ]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Monto (Bs.)'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Categoría'
-                        }
-                    }
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error('Error al cargar el gráfico de comparación de presupuestos:', error);
+                options: { maintainAspectRatio: false }
+            });
+        } catch (e) { console.error(e); }
     }
-}
+
+    _destroyChart(id) {
+        if (this._chartInstances[id]) { this._chartInstances[id].destroy(); delete this._chartInstances[id]; }
+    }
+
+    _setupCanvas(target, id, className = 'chart-container') {
+        target.innerHTML = '';
+        const div = document.createElement('div');
+        div.classList.add(className);
+        div.style.width='100%'; div.style.height='100%';
+        const cvs = document.createElement('canvas');
+        cvs.id = id;
+        div.appendChild(cvs);
+        target.appendChild(div);
+        return cvs.getContext('2d');
+    }
+
+    _genColors(count) {
+        const c=[]; for(let i=0;i<count;i++) c.push(`hsl(${Math.floor(Math.random()*360)}, 70%, 60%)`); return c;
+    }
 
     async genMonthlyExpenseProjection(targetElement, currentMonth, currentYear) {
         if (this._chartInstances[`expense-projection-${targetElement.id}`]) {

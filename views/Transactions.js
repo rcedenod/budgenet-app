@@ -2,15 +2,17 @@ import { Input } from '../components/Input.js';
 import { Select } from '../components/Select.js';
 import { Textarea } from '../components/Textarea.js';
 import { Button } from '../components/Button.js';
-import { Toast } from '../components/Toast.js';
 
 export class Transactions {
     _container = null;
     _db = null;
+    _toast = null;
+    _confirmDialog = null;
     _transactions = [];
     _categories = [];
     _cssPath = './views/styles/Transactions.css';
 
+    // ... (referencias a inputs)
     _transactionTypeSelect = null;
     _transactionAmountInput = null;
     _transactionDateInput = null;
@@ -23,11 +25,10 @@ export class Transactions {
     _applyFilterButton = null;
     _clearFilterButton = null;
 
-
     _transactionsListContainer = null;
     _currentEditingTransactionId = null;
 
-    constructor(container, db, toast) {
+    constructor(container, db, toast, confirmDialog) {
         if (!(container instanceof HTMLElement)) {
             throw new Error('Transactions: el container debe ser un elemento HTML válido.');
         }
@@ -38,6 +39,7 @@ export class Transactions {
         this._container = container;
         this._db = db;
         this._toast = toast;
+        this._confirmDialog = confirmDialog;
         this._loadCSS(this._cssPath);
 
         document.addEventListener('transactionsUpdated', () => {
@@ -65,8 +67,8 @@ export class Transactions {
             this._categories = await this._db.getCategories();
             this.updateCategorySelects();
         } catch (error) {
-            console.error('Error al cargar categorías para transacciones:', error);
-            alert('Error al cargar las categorías. No podrá registrar transacciones.');
+            console.error('Error al cargar categorías:', error);
+            this._toast.show('Error al cargar categorías', 'error');
         }
     }
 
@@ -77,7 +79,7 @@ export class Transactions {
             this.renderTransactionsList();
         } catch (error) {
             console.error('Error al cargar transacciones:', error);
-            alert('Error al cargar las transacciones. Por favor, intente de nuevo.');
+            this._toast.show('Error al cargar transacciones', 'error');
         }
     }
 
@@ -88,46 +90,36 @@ export class Transactions {
 
         let filterCategoryId = null;
         if (categoryValue && categoryValue !== 'all') {
-            const parsedId = parseInt(categoryValue, 10);
-            if (!isNaN(parsedId)) {
-                filterCategoryId = parsedId;
-            } else {
-                console.warn('Invalid category ID received from filter select:', categoryValue);
-            }
+            filterCategoryId = parseInt(categoryValue, 10);
         }
         const filterType = type === 'all' ? null : type;
 
         try {
             let filteredTransactions = await this._db.getTransactionsFiltered(filterType, filterCategoryId, searchTerm);
-
             filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
             this._transactions = filteredTransactions;
             this.renderTransactionsList();
         } catch (error) {
-            console.error('Error al filtrar y buscar transacciones:', error);
-            alert('Error al aplicar filtros y búsqueda.');
+            console.error('Error al filtrar:', error);
+            this._toast.show('Error al aplicar filtros', 'error');
         }
     }
 
     render() {
         this._container.innerHTML = '';
-
         const container = document.createElement('div');
         container.classList.add('container');
 
+        // Header
         const headerArea = document.createElement('div');
         headerArea.classList.add('header');
-        const title = document.createElement('h2');
-        title.textContent = 'Gestión de transacciones';
-        headerArea.appendChild(title);
+        headerArea.innerHTML = '<h2>Gestión de transacciones</h2>';
         container.appendChild(headerArea);
 
+        // Register Area
         const registerArea = document.createElement('div');
         registerArea.classList.add('register');
-        const formTitle = document.createElement('h3');
-        formTitle.textContent = 'Información de la transacción';
-        registerArea.appendChild(formTitle);
+        registerArea.innerHTML = '<h3>Información de la transacción</h3>';
 
         const typeWrapper = document.createElement('div');
         registerArea.appendChild(typeWrapper);
@@ -178,14 +170,12 @@ export class Transactions {
             styles: { width: '100%', padding: '10px' },
             onClick: () => this.handleAddOrUpdateTransaction(),
         });
-
         container.appendChild(registerArea);
 
+        // Filters Area
         const filtersArea = document.createElement('div');
         filtersArea.classList.add('filters');
-        const filterTitle = document.createElement('h3');
-        filterTitle.textContent = 'Filtrar transacciones';
-        filtersArea.appendChild(filterTitle);
+        filtersArea.innerHTML = '<h3>Filtrar transacciones</h3>';
 
         const filterTypeWrapper = document.createElement('div');
         filtersArea.appendChild(filterTypeWrapper);
@@ -229,17 +219,16 @@ export class Transactions {
 
         this._clearFilterButton = new Button(filterButtonsWrapper, {
             text: 'Limpiar',
-            styles: { flex: '1', padding: '10px', marginTop: '10px', backgroundColor: '#6c757d', marginLeft: '5px' }
+            styles: { flex: '1', padding: '10px', marginTop: '10px', backgroundColor: '#6c757d', marginLeft: '5px' },
+            onClick: () => this.clearFilters()
         });
         this._clearFilterButton.render();
-
         container.appendChild(filtersArea);
 
+        // Content Area
         const contentArea = document.createElement('div');
         contentArea.classList.add('content');
-        const listTitle = document.createElement('h3');
-        listTitle.textContent = 'Transacciones registradas';
-        contentArea.appendChild(listTitle);
+        contentArea.innerHTML = '<h3>Transacciones registradas</h3>';
 
         this._transactionsListContainer = document.createElement('ul');
         this._transactionsListContainer.classList.add('transactions-list');
@@ -247,7 +236,6 @@ export class Transactions {
         container.appendChild(contentArea);
 
         this._container.appendChild(container);
-
         this.loadCategories();
         this.loadTransactions();
     }
@@ -258,6 +246,7 @@ export class Transactions {
             categoryOptions.push({ value: cat.id, text: cat.name });
         });
 
+        // Actualizar Select de Registro
         this._transactionCategorySelect.remove();
         const transactionCategoryWrapper = this._transactionCategorySelect.container;
         this._transactionCategorySelect = new Select(transactionCategoryWrapper, {
@@ -267,10 +256,9 @@ export class Transactions {
         transactionCategoryWrapper.appendChild(this._transactionCategorySelect.render());
         if (categoryOptions.filter(opt => opt.value !== 'all').length > 0) {
             this._transactionCategorySelect.setValue(categoryOptions.filter(opt => opt.value !== 'all')[0].value);
-        } else {
-            this._transactionCategorySelect.setValue('');
         }
 
+        // Actualizar Select de Filtro
         this._filterCategorySelect.remove();
         const filterCategoryWrapper = this._filterCategorySelect.container;
         this._filterCategorySelect = new Select(filterCategoryWrapper, {
@@ -283,12 +271,11 @@ export class Transactions {
 
     renderTransactionsList() {
         if (!this._transactionsListContainer) return;
-
         this._transactionsListContainer.innerHTML = '';
 
         if (this._transactions.length === 0) {
             const noTransactionsMessage = document.createElement('li');
-            noTransactionsMessage.textContent = 'No hay transacciones registradas que coincidan con los filtros o la búsqueda.';
+            noTransactionsMessage.textContent = 'No hay transacciones registradas.';
             noTransactionsMessage.classList.add('no-transactions-message');
             this._transactionsListContainer.appendChild(noTransactionsMessage);
             return;
@@ -300,8 +287,9 @@ export class Transactions {
 
             const categoryName = this._categories.find(cat => cat.id === transaction.categoryId)?.name || 'Sin Categoría';
             const transactionDate = new Date(transaction.date).toLocaleDateString('es-ES');
+            
+            // PRECISIÓN: Dividimos por 100 para mostrar
             const amountFormatted = `Bs. ${(transaction.amount / 100).toFixed(2)}`;
-
             const amountColorClass = transaction.type === 'income' ? 'amount-income' : 'amount-expense';
 
             listItem.innerHTML = `
@@ -311,23 +299,32 @@ export class Transactions {
                     <span class="transaction-amount ${amountColorClass}">${amountFormatted}</span> <span class="transaction-date">${transactionDate}</span>
                 </div>
                 <div class="transaction-actions">
-                    <a href="#" class="edit-transaction-link" data-id="${transaction.id}">Editar</a>
-                    <a href="#" class="delete-transaction-link" data-id="${transaction.id}">Eliminar</a>
+                    <a href="#" class="edit-transaction-link">Editar</a>
+                    <a href="#" class="delete-transaction-link">Eliminar</a>
                 </div>
             `;
+            
+            // Seguridad: Insertar descripción de forma segura
+            const descP = document.createElement('p');
+            descP.classList.add('transaction-description');
+            descP.textContent = transaction.description || 'Sin descripción';
+            listItem.querySelector('.transaction-details').appendChild(descP);
 
-            const pDescription = document.createElement('p');
-            pDescription.textContent = transaction.description;
-            listItem.querySelector('.transaction-details').appendChild(pDescription);
-
-            listItem.querySelector('.edit-transaction-link').addEventListener('click', (e) => {
+            // Listeners
+            const editLink = listItem.querySelector('.edit-transaction-link');
+            editLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.handleEditTransaction(transaction.id);
             });
-            listItem.querySelector('.delete-transaction-link').addEventListener('click', (e) => {
+            // Guardamos el ID en el elemento para facilitar referencias si fuera necesario
+            editLink.dataset.id = transaction.id;
+
+            const deleteLink = listItem.querySelector('.delete-transaction-link');
+            deleteLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.handleDeleteTransaction(transaction.id, transaction.amount, transaction.type, categoryName);
             });
+            deleteLink.dataset.id = transaction.id;
 
             this._transactionsListContainer.appendChild(listItem);
         });
@@ -335,20 +332,22 @@ export class Transactions {
 
     async handleAddOrUpdateTransaction() {
         const type = this._transactionTypeSelect.getValue();
-        const amountInput = parseFloat(this._transactionAmountInput.getValue());
-        const amount = Math.round(amountInput * 100);
+        const rawAmount = parseFloat(this._transactionAmountInput.getValue());
         const date = this._transactionDateInput.getValue();
         const categoryId = parseInt(this._transactionCategorySelect.getValue(), 10);
         const description = this._transactionDescriptionTextarea.getValue();
 
-        if (!type || isNaN(amount) || amount <= 0 || !date || !categoryId) {
-            alert('Por favor, complete todos los campos de la transacción: Tipo, Monto (debe ser positivo), Fecha y Categoría.');
+        if (!type || isNaN(rawAmount) || rawAmount <= 0 || !date || !categoryId) {
+            this._toast.show('Complete todos los campos. El monto debe ser positivo.', 'error');
             return;
         }
 
+        // PRECISIÓN: Multiplicar por 100 y redondear
+        const amount = Math.round(rawAmount * 100);
+
         const transactionData = {
             type,
-            amount,
+            amount, // Guardado en centavos
             date,
             categoryId,
             description
@@ -358,18 +357,18 @@ export class Transactions {
             if (this._currentEditingTransactionId) {
                 transactionData.id = this._currentEditingTransactionId;
                 await this._db.updateTransaction(transactionData);
-                this._toast.show('Transacción modificada con éxito', 'success');
+                this._toast.show('Transacción actualizada con éxito.', 'success');
                 this._currentEditingTransactionId = null;
             } else {
                 await this._db.addTransaction(transactionData);
-                this._toast.show('Transacción guardada con éxito', 'success');
+                this._toast.show('Transacción registrada con éxito.', 'success');
             }
             this.clearForm();
             document.dispatchEvent(new CustomEvent('transactionsUpdated'));
             await this.applyFilters();
         } catch (error) {
-            console.error('Error al guardar transacción:', error);
-            this._toast.show('Error al guardar la transacción', 'error');;
+            console.error('Error al guardar:', error);
+            this._toast.show('Error al guardar la transacción.', 'error');
         }
     }
 
@@ -383,43 +382,43 @@ export class Transactions {
         if (transactionToEdit) {
             this._currentEditingTransactionId = id;
             this._transactionTypeSelect.setValue(transactionToEdit.type);
+            // PRECISIÓN: Dividir por 100 para editar
             this._transactionAmountInput.setValue((transactionToEdit.amount / 100).toFixed(2));
             this._transactionDateInput.setValue(transactionToEdit.date);
             this._transactionCategorySelect.setValue(transactionToEdit.categoryId.toString());
             this._transactionDescriptionTextarea.setValue(transactionToEdit.description);
             this._addTransactionButton.setText('Actualizar Transacción');
         } else {
-            alert('Transacción no encontrada para editar.');
+            this._toast.show('Transacción no encontrada.', 'error');
         }
     }
 
     async handleDeleteTransaction(id, amount, type, categoryName) {
-        const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la transacción de ${type === 'income' ? 'Ingreso' : 'Egreso'} de ${amount.toFixed(2)} Bs. en la categoría "${categoryName}"?`);
+        // PRECISIÓN: Mostrar monto correcto en el mensaje
+        const formattedAmount = (amount / 100).toFixed(2);
+        const typeText = type === 'income' ? 'Ingreso' : 'Egreso';
+        const message = `¿Estás seguro de eliminar el ${typeText} de Bs. ${formattedAmount} en "${categoryName}"?`;
 
-        if (confirmDelete) {
+        this._confirmDialog.show(message, async () => {
             try {
                 await this._db.deleteTransaction(id);
-                alert('Transacción eliminada exitosamente.');
+                this._toast.show('Transacción eliminada.', 'success');
                 document.dispatchEvent(new CustomEvent('transactionsUpdated'));
                 await this.applyFilters();
             } catch (error) {
-                console.error('Error al eliminar transacción:', error);
-                alert('Hubo un error al intentar eliminar la transacción. Por favor, inténtalo de nuevo.');
+                console.error('Error al eliminar:', error);
+                this._toast.show('Error al eliminar la transacción.', 'error');
             }
-        }
+        });
     }
 
     clearForm() {
         this._transactionTypeSelect.setValue('expense');
         this._transactionAmountInput.setValue('');
         this._transactionDateInput.setValue(new Date().toISOString().slice(0, 10));
-        if (this._categories.length > 0) {
-            const validCategories = this._categories.filter(cat => cat.id !== '');
-            if (validCategories.length > 0) {
-                this._transactionCategorySelect.setValue(validCategories[0].id);
-            } else {
-                this._transactionCategorySelect.setValue('');
-            }
+        if (this._categories.length > 0 && this._categories.some(c => c.id !== '')) {
+             const firstValid = this._categories.find(c => c.id !== '');
+             this._transactionCategorySelect.setValue(firstValid ? firstValid.id : '');
         } else {
             this._transactionCategorySelect.setValue('');
         }
@@ -429,12 +428,10 @@ export class Transactions {
     }
 
     async applyFilters() {
-        console.log('Aplicando filtros...');
         await this.filterAndSearchTransactions();
     }
 
     async clearFilters() {
-        console.log('Limpiando filtros...');
         this._filterTypeSelect.setValue('all');
         this._filterCategorySelect.setValue('all');
         this._searchTextInput.setValue('');
