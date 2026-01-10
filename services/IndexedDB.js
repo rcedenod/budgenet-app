@@ -451,17 +451,23 @@ export class IndexedDB {
         return new Promise((resolve, reject) => {
             const transactionDB = this._db.transaction(['transactions'], 'readonly');
             const store = transactionDB.objectStore('transactions');
-            let request = store.getAll();
+            let request;
+
+            if (type && type !== 'all' && categoryId && categoryId !== 'all') {
+                const index = store.index('typeAndCategory');
+                request = index.getAll([type, parseInt(categoryId)]); 
+            } else if (type && type !== 'all') {
+                const index = store.index('type');
+                request = index.getAll(type);
+            } else if (categoryId && categoryId !== 'all') {
+                const index = store.index('categoryId');
+                request = index.getAll(parseInt(categoryId));
+            } else {
+                request = store.getAll();
+            }
 
             request.onsuccess = () => {
                 let transactions = request.result;
-
-                if (type && type !== 'all') {
-                    transactions = transactions.filter(t => t.type === type);
-                }
-                if (categoryId && categoryId !== 'all') {
-                    transactions = transactions.filter(t => t.categoryId === categoryId);
-                }
                 if (searchTerm) {
                     const lowerCaseSearchTerm = searchTerm.toLowerCase();
                     transactions = transactions.filter(t =>

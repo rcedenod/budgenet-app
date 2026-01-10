@@ -7,6 +7,7 @@ import { Categories } from './views/Categories.js';
 import { Budgets } from './views/Budgets.js';
 import { IndexedDB } from './services/IndexedDB.js';
 import { Charts } from './services/Charts.js';
+import { Toast } from './components/Toast.js';
 
 // esperamos a que todo el contenido de la pagina este cargado antes de empezar a utilizarlo
 document.addEventListener('DOMContentLoaded', async () => {
@@ -28,6 +29,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // creamos una instancia de charts, pasandole la db para que pueda acceder a los datos.
     const charts = new Charts(db);
+
+    const toast = new Toast();
 
     // creamos un div que servira como la estructura principal de la aplicacion (un grid).
     const appGridContainer = document.createElement('div');
@@ -80,10 +83,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // creamos la instancia de la vista, pasandole los elementos necesarios.
                 // algunas vistas necesitan la db y charts, otras solo la db.
                 if(view === 'categories' || view === 'dashboard' || view === 'budgets') { 
-                    viewConfig.instance = new viewConfig.component(contentElement, db, charts);
+                    viewConfig.instance = new viewConfig.component(contentElement, db, charts, toast);
                 }
                 else if (view === 'transactions' ) {
-                    viewConfig.instance = new viewConfig.component(contentElement, db);
+                    viewConfig.instance = new viewConfig.component(contentElement, db, toast);
                 }
             }
             // finalmente, renderizamos (dibujamos) la vista en el area de contenido.

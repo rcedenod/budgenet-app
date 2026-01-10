@@ -2,6 +2,7 @@ import { Input } from '../components/Input.js';
 import { Select } from '../components/Select.js';
 import { Textarea } from '../components/Textarea.js';
 import { Button } from '../components/Button.js';
+import { Toast } from '../components/Toast.js';
 
 export class Transactions {
     _container = null;
@@ -26,7 +27,7 @@ export class Transactions {
     _transactionsListContainer = null;
     _currentEditingTransactionId = null;
 
-    constructor(container, db) {
+    constructor(container, db, toast) {
         if (!(container instanceof HTMLElement)) {
             throw new Error('Transactions: el container debe ser un elemento HTML válido.');
         }
@@ -36,6 +37,7 @@ export class Transactions {
 
         this._container = container;
         this._db = db;
+        this._toast = toast;
         this._loadCSS(this._cssPath);
 
         document.addEventListener('transactionsUpdated', () => {
@@ -298,7 +300,7 @@ export class Transactions {
 
             const categoryName = this._categories.find(cat => cat.id === transaction.categoryId)?.name || 'Sin Categoría';
             const transactionDate = new Date(transaction.date).toLocaleDateString('es-ES');
-            const amountFormatted = `Bs. ${transaction.amount.toFixed(2)}`;
+            const amountFormatted = `Bs. ${(transaction.amount / 100).toFixed(2)}`;
 
             const amountColorClass = transaction.type === 'income' ? 'amount-income' : 'amount-expense';
 
@@ -307,13 +309,16 @@ export class Transactions {
                     <span class="transaction-type">${transaction.type === 'income' ? 'Ingreso' : 'Egreso'}</span>
                     <span class="transaction-category">${categoryName}</span>
                     <span class="transaction-amount ${amountColorClass}">${amountFormatted}</span> <span class="transaction-date">${transactionDate}</span>
-                    <p class="transaction-description">${transaction.description || 'Sin descripción'}</p>
                 </div>
                 <div class="transaction-actions">
                     <a href="#" class="edit-transaction-link" data-id="${transaction.id}">Editar</a>
                     <a href="#" class="delete-transaction-link" data-id="${transaction.id}">Eliminar</a>
                 </div>
             `;
+
+            const pDescription = document.createElement('p');
+            pDescription.textContent = transaction.description;
+            listItem.querySelector('.transaction-details').appendChild(pDescription);
 
             listItem.querySelector('.edit-transaction-link').addEventListener('click', (e) => {
                 e.preventDefault();
@@ -330,7 +335,8 @@ export class Transactions {
 
     async handleAddOrUpdateTransaction() {
         const type = this._transactionTypeSelect.getValue();
-        const amount = parseFloat(this._transactionAmountInput.getValue());
+        const amountInput = parseFloat(this._transactionAmountInput.getValue());
+        const amount = Math.round(amountInput * 100);
         const date = this._transactionDateInput.getValue();
         const categoryId = parseInt(this._transactionCategorySelect.getValue(), 10);
         const description = this._transactionDescriptionTextarea.getValue();
@@ -352,18 +358,18 @@ export class Transactions {
             if (this._currentEditingTransactionId) {
                 transactionData.id = this._currentEditingTransactionId;
                 await this._db.updateTransaction(transactionData);
-                alert('Transacción actualizada exitosamente.');
+                this._toast.show('Transacción modificada con éxito', 'success');
                 this._currentEditingTransactionId = null;
             } else {
                 await this._db.addTransaction(transactionData);
-                alert('Transacción registrada exitosamente.');
+                this._toast.show('Transacción guardada con éxito', 'success');
             }
             this.clearForm();
             document.dispatchEvent(new CustomEvent('transactionsUpdated'));
             await this.applyFilters();
         } catch (error) {
             console.error('Error al guardar transacción:', error);
-            alert('Error al guardar la transacción. Por favor, intente de nuevo.');
+            this._toast.show('Error al guardar la transacción', 'error');;
         }
     }
 
@@ -377,7 +383,7 @@ export class Transactions {
         if (transactionToEdit) {
             this._currentEditingTransactionId = id;
             this._transactionTypeSelect.setValue(transactionToEdit.type);
-            this._transactionAmountInput.setValue(transactionToEdit.amount);
+            this._transactionAmountInput.setValue((transactionToEdit.amount / 100).toFixed(2));
             this._transactionDateInput.setValue(transactionToEdit.date);
             this._transactionCategorySelect.setValue(transactionToEdit.categoryId.toString());
             this._transactionDescriptionTextarea.setValue(transactionToEdit.description);
