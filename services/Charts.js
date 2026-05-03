@@ -389,7 +389,6 @@ export class Charts {
                 const monthIndex = new Date(expense.date).getMonth();
                 realExpensesByMonth[monthIndex] += expense.amount;
             });
-            console.log('Egresos Reales por Mes (todos):', realExpensesByMonth);
 
             allBudgets.filter(b => b.year === currentYear)
             .forEach(budget => {
@@ -400,7 +399,6 @@ export class Charts {
                     console.warn(`Presupuesto con mes inválido o ausente:`, budget);
                 }
             });
-            console.log('Egresos Estimados por mes (todos):', estimatedExpensesByMonth);
 
             const chartLabels = monthLabels;
             const chartRealExpenses = realExpensesByMonth;

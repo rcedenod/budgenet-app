@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const db = new IndexedDB();
     try {
         await db.initialize();
-        console.log('IndexedDB inicializada con éxito.');
     } catch (error) {
         console.error('Fallo al inicializar IndexedDB:', error);
         // Aquí no podemos usar Toast aun porque la app no ha cargado, un alert de emergencia está bien, 
@@ -53,10 +52,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     contentElement.classList.add('content');
     appGridContainer.appendChild(contentElement);
 
+    let currentView = null;
+
     const loadView = (view) => {
         sidebarElement.querySelectorAll('.sidebar-item').forEach(li => {
             li.classList.toggle('active', li.dataset.view === view);
         });
+
+        if (currentView && views[currentView]?.instance && typeof views[currentView].instance.destroy === 'function') {
+            views[currentView].instance.destroy();
+        }
 
         contentElement.innerHTML = '';
         const viewConfig = views[view];
@@ -72,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             viewConfig.instance.render();
+            currentView = view;
         }
     };
 

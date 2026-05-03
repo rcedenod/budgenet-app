@@ -98,12 +98,12 @@ export class Categories {
         createArea.appendChild(this._newCategoryInput.render());
 
         const addCategoryButtonWrapper = document.createElement('div');
-        const addCategoryButton = new Button(addCategoryButtonWrapper, {
+        this._addCategoryButton = new Button(addCategoryButtonWrapper, {
             text: 'Guardar',
             styles: { width: '100%', padding: '10px' },
             onClick: () => this.handleAddCategory(),
         });
-        createArea.appendChild(addCategoryButton.render());
+        createArea.appendChild(this._addCategoryButton.render());
         categoriesView.appendChild(createArea);
 
         const viewArea = document.createElement('div');
@@ -216,6 +216,7 @@ export class Categories {
             return;
         }
 
+        this._addCategoryButton.setDisabled(true);
         try {
             const existing = await this._db.getCategories();
             if (existing.some(c => c.name.toLowerCase() === categoryName.toLowerCase())) {
@@ -230,6 +231,8 @@ export class Categories {
         } catch (error) {
             console.error('Error:', error);
             this._toast.show('Error al guardar categoría.', 'error');
+        } finally {
+            this._addCategoryButton.setDisabled(false);
         }
     }
 

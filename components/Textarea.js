@@ -124,6 +124,7 @@ export class Textarea {
     remove() {
         if (this.textareaElement && this.textareaElement.parentElement) {
             this.textareaElement.parentElement.removeChild(this.textareaElement);
+            this.textareaElement = null;
         }
     }
 }

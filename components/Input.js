@@ -115,6 +115,7 @@ export class Input {
     remove() {
         if (this.inputElement && this.inputElement.parentElement) {
             this.inputElement.parentElement.removeChild(this.inputElement);
+            this.inputElement = null;
         }
     }
 }

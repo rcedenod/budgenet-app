@@ -17,6 +17,9 @@ export class Dashboard {
     _currentYear = null;
     _expensesIncomesArea = null;
     _budgetStatusElement = null;
+    _onTransactionsUpdated = null;
+    _onBudgetsUpdated = null;
+    _onCategoriesUpdated = null;
 
     constructor(dashboardView, db, charts) {
         if (!(dashboardView instanceof HTMLElement)) {
@@ -36,23 +39,23 @@ export class Dashboard {
         this._currentMonth = new Date().getMonth() + 1;
         this._currentYear = new Date().getFullYear();
 
-        document.addEventListener('transactionsUpdated', async () => {
-            console.log('transactionsUpdated event received in Dashboard, refreshing data.');
+        this._onTransactionsUpdated = async () => {
             await this.loadRecentTransactions();
             await this.renderCharts();
             await this.loadBudgetStatus();
-        });
-        document.addEventListener('budgetsUpdated', async () => {
-            console.log('budgetsUpdated event received in Dashboard, refreshing data.');
+        };
+        this._onBudgetsUpdated = async () => {
             await this.loadBudgetStatus();
             await this.renderCharts();
-        });
-        document.addEventListener('categoriesUpdated', async () => {
-            console.log('categoriesUpdated event received in Dashboard, refreshing categories and budget status.');
+        };
+        this._onCategoriesUpdated = async () => {
             await this.loadCategories();
             await this.loadBudgetStatus();
             await this.renderCharts();
-        });
+        };
+        document.addEventListener('transactionsUpdated', this._onTransactionsUpdated);
+        document.addEventListener('budgetsUpdated', this._onBudgetsUpdated);
+        document.addEventListener('categoriesUpdated', this._onCategoriesUpdated);
     }
 
     _loadCSS(path) {
@@ -197,6 +200,21 @@ export class Dashboard {
         await this.renderCharts();
 
         return dashboardView;
+    }
+
+    destroy() {
+        if (this._onTransactionsUpdated) {
+            document.removeEventListener('transactionsUpdated', this._onTransactionsUpdated);
+            this._onTransactionsUpdated = null;
+        }
+        if (this._onBudgetsUpdated) {
+            document.removeEventListener('budgetsUpdated', this._onBudgetsUpdated);
+            this._onBudgetsUpdated = null;
+        }
+        if (this._onCategoriesUpdated) {
+            document.removeEventListener('categoriesUpdated', this._onCategoriesUpdated);
+            this._onCategoriesUpdated = null;
+        }
     }
 
     async loadBudgetStatus() {
@@ -359,7 +377,7 @@ export class Dashboard {
                 listItem.innerHTML = `
                     <div class="transaction-details">
                         <span class="transaction-type">${transaction.type === 'income' ? 'Ingreso' : 'Egreso'}</span>
-                        <span class="transaction-amount">Bs. ${transaction.amount.toFixed(2)}</span>
+                        <span class="transaction-amount">Bs. ${(transaction.amount / 100).toFixed(2)}</span>
                         <span class="transaction-date">${dateDisplay}</span>
                         <span class="transaction-category">Categoría: ${categoryName}</span>
                         <p class="transaction-description">${transaction.description || 'Sin descripción'}</p>

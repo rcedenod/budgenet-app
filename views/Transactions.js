@@ -27,6 +27,9 @@ export class Transactions {
 
     _transactionsListContainer = null;
     _currentEditingTransactionId = null;
+    _onTransactionsUpdated = null;
+    _onCategoryDeleted = null;
+    _onCategoriesUpdated = null;
 
     constructor(container, db, toast, confirmDialog) {
         if (!(container instanceof HTMLElement)) {
@@ -42,17 +45,20 @@ export class Transactions {
         this._confirmDialog = confirmDialog;
         this._loadCSS(this._cssPath);
 
-        document.addEventListener('transactionsUpdated', () => {
+        this._onTransactionsUpdated = () => {
             this.loadTransactions();
-        });
-        document.addEventListener('categoryDeleted', async () => {
+        };
+        this._onCategoryDeleted = async () => {
             await this.loadCategories();
             this.applyFilters();
-        });
-        document.addEventListener('categoriesUpdated', async () => {
+        };
+        this._onCategoriesUpdated = async () => {
             await this.loadCategories();
             this.applyFilters();
-        });
+        };
+        document.addEventListener('transactionsUpdated', this._onTransactionsUpdated);
+        document.addEventListener('categoryDeleted', this._onCategoryDeleted);
+        document.addEventListener('categoriesUpdated', this._onCategoriesUpdated);
     }
 
     _loadCSS(path) {
@@ -359,6 +365,7 @@ export class Transactions {
             description
         };
 
+        this._addTransactionButton.setDisabled(true);
         try {
             if (this._currentEditingTransactionId) {
                 transactionData.id = this._currentEditingTransactionId;
@@ -375,6 +382,8 @@ export class Transactions {
         } catch (error) {
             console.error('Error al guardar:', error);
             this._toast.show('Error al guardar la transacción.', 'error');
+        } finally {
+            this._addTransactionButton.setDisabled(false);
         }
     }
 
@@ -442,5 +451,20 @@ export class Transactions {
         this._filterCategorySelect.setValue('all');
         this._searchTextInput.setValue('');
         await this.applyFilters();
+    }
+
+    destroy() {
+        if (this._onTransactionsUpdated) {
+            document.removeEventListener('transactionsUpdated', this._onTransactionsUpdated);
+            this._onTransactionsUpdated = null;
+        }
+        if (this._onCategoryDeleted) {
+            document.removeEventListener('categoryDeleted', this._onCategoryDeleted);
+            this._onCategoryDeleted = null;
+        }
+        if (this._onCategoriesUpdated) {
+            document.removeEventListener('categoriesUpdated', this._onCategoriesUpdated);
+            this._onCategoriesUpdated = null;
+        }
     }
 }

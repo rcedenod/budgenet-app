@@ -6,7 +6,7 @@ export class Select {
         border: '1px solid #ccc',
         borderRadius: '5px',
         fontSize: '16px',
-        width: '15%',
+        width: '100%',
         backgroundColor: '#fff'
     };
 
@@ -132,7 +132,7 @@ export class Select {
     remove() {
         if (this.selectElement && this.selectElement.parentElement) {
             this.selectElement.parentElement.removeChild(this.selectElement);
-            this._selectElement = null;
+            this.selectElement = null;
         }
     }
 }

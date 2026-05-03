@@ -107,9 +107,9 @@ export class Button {
 
     // remover boton del DOM
     remove() {
-        // remover si el boton esta creado y si tiene un contenedor o padre
         if (this.buttonElement && this.buttonElement.parentElement) {
             this.buttonElement.parentElement.removeChild(this.buttonElement);
+            this.buttonElement = null;
         }
     }
 }
